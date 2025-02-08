@@ -68,7 +68,6 @@ constexpr auto char_to_array(const char t[],std::index_sequence<i...>){
 }
 
 
-
 template<char const t[]>
 constexpr auto Char_to_array(){
     return char_to_array<t>(std::make_index_sequence<to_zero<0,t>()>());
@@ -84,11 +83,36 @@ constexpr auto to_array(T t,std::index_sequence<i...>){
     return std::array<T,sizeof... (i)>{repeater_fun<i>(t)...};
 }
 
+template<typename T, size_t Size>
+class Array : public std::array<T, Size>{};
+
+template<typename T, size_t... i>
+constexpr bool equal(Array<T, sizeof... (i)> arr1, Array<T, sizeof... (i)> arr2, std::index_sequence<i...> ){
+    bool is = true;
+    ((arr1[i]!=arr2[i] ? is=false : is =is),...);
+    return is;
+}
+
+
+template<typename T, size_t Size1, size_t Size2>
+constexpr bool operator==(const Array<T, Size1> &arr1,const Array<T, Size2> &arr2){
+    if constexpr(Size1 !=Size2){
+        return  false;
+    }else {
+        return  equal(arr1, arr2, std::make_index_sequence<Size1>());
+    }
+}
 
 template<typename T,std::size_t N>
 constexpr auto To_array(T t){
     return to_array<T>(t,std::make_index_sequence<N>());
 }
+
+template<typename Char, Char ... Chars>
+constexpr Array<char,sizeof...(Chars)> operator"" _ss() {
+    return Array<char,sizeof...(Chars)>{Chars...};
+};
+
 
 
 template<std::size_t N>
@@ -215,6 +239,16 @@ constexpr inline void TupleForeach(T&& t,F &&f) {
     tupleForeach(std::forward<T>(t),std::forward<F>(f),std::make_index_sequence<std::tuple_size<std::remove_reference_t<T>>::value>());
 }
 
+template <typename Array,typename F, size_t... i>
+constexpr inline void arrayForeach(Array&& t,F &&f, std::index_sequence<i...>) {
+    ((f(std::get<i>(std::forward<Array>(t)))),...);
+}
+
+template <std::size_t N,typename Array, typename F>
+constexpr inline void ArrayForeach(Array & array,F &&f) {
+    arrayForeach(std::forward<Array>(array),std::forward<F>(f),std::make_index_sequence<N>());
+}
+
 template <typename T,typename S, size_t... i>
 constexpr inline int get_tuple_type_number(std::index_sequence<i...>) noexcept{
    int k=-1;
@@ -282,6 +316,13 @@ constexpr auto * Get_tuple_type_element(K &s){
 }
 
 
+//template<typename Type,typename ...Arg>
+//struct Type_to_tuple{
+//    std::tuple_element_t<tutl::Get_tuple_type_number<Type,std::tuple<decltype (Arg::Type())...>>(),std::tuple<decltype (Arg::Type())...>> k();
+
+//    using type=decltype (k());
+// };
+
 
 template<typename Type,typename T>
 constexpr bool isGet_tuple_type_element(){
@@ -347,7 +388,7 @@ constexpr auto make_index_to_array(std::index_sequence<i...>){
 template<int N>
 constexpr auto Make_index_to_array(){
     if constexpr(N<0){
-        return std::tuple<>{};
+        return std::array<int, 1>{0};
     }else{
         return make_index_to_array(std::make_index_sequence<N>());
     }
@@ -493,7 +534,12 @@ inline std::function<void(Arg ...)>  get_to_for_array_fun(std::vector<std::funct
     return [array](Arg ...arg){array_to_for(array,arg...);};
 }
 
-
+//для visit
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+// explicit deduction guide (not needed as of C++20)
+template<class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 }
 #endif // TUPLE_UTL_H
